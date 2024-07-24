@@ -7,8 +7,8 @@ import time
 import urllib.parse
 
 def get_ifood_price(product_name, cep):
+    if product_name == 'Entresto 100mg': product_name = 'Entresto 49mg + 51mg'
     options = Options()
-    options.headless = False  # Set to False to see the browser interactions (helpful for debugging)
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
     # Encode spaces in the product name as %20
@@ -37,7 +37,7 @@ def get_ifood_price(product_name, cep):
         # Find and click the location button to open the location input (adjust selectors as needed)
         location_button = driver.find_element(By.XPATH, '/html/body/div[4]/div/div/div/div/div/div[2]/div/div[1]/div[3]/ul/li[1]/div/button')
         location_button.click()
-        time.sleep(2)
+        time.sleep(5)
 
         # Find and click the location button to open the location input (adjust selectors as needed)
         location_button = driver.find_element(By.CLASS_NAME, 'address-maps__submit')
@@ -98,7 +98,6 @@ def get_ifood_price(product_name, cep):
 
 def get_drogasil_price(product_name):
     options = Options()
-    options.headless = False  # Set to False to see the browser interactions (helpful for debugging)
     options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
@@ -148,7 +147,7 @@ def get_drogasil_price(product_name):
     return cheapest_price
 
 # Example usage
-product_name = 'predsim 40mg'  # Replace with any dynamic product name
+product_name = 'Lasix 40mg'  # Replace with any dynamic product name
 cep = 'Belém Pará'  # Replace with the desired CEP 
 cheapest_price_ifood = get_ifood_price(product_name, cep)
 cheapest_price_drogasil = get_drogasil_price(product_name)
