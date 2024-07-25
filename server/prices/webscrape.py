@@ -3,12 +3,14 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+import requests
 import time
 import urllib.parse
 
 def get_ifood_price(product_name, cep):
-    if product_name == 'Entresto 100mg': product_name = 'Entresto 49mg + 51mg'
+    if product_name == 'Entresto 100mg 60 comprimidos': product_name = 'Entresto 49mg + 51mg 60 comprimidos'
     options = Options()
+    options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
     # Encode spaces in the product name as %20
@@ -95,7 +97,6 @@ def get_ifood_price(product_name, cep):
         driver.quit()
     
     return cheapest_price
-
 def get_drogasil_price(product_name):
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
@@ -145,11 +146,119 @@ def get_drogasil_price(product_name):
         driver.quit()
     
     return cheapest_price
+def get_price_globo(product_name, company_name):
+    if product_name == 'Entresto 100mg 60 comprimidos': product_name = 'Entresto 49mg + 51mg 60 comprimidos'
+    options = Options()
+    options.add_argument("--incognito")  # Open Chrome in incognito mode
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    
+    search_query = f"{product_name} {company_name}"
+    # Make the request to the Google Custom Search API
+    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={cx}')
+    data = response.json()
+
+    # Extract the URL of the first result
+    if 'items' in data and len(data['items']) > 0:
+        first_result_url = data['items'][0]['link']
+        print("First result URL:", first_result_url)
+    else:
+        print("No results found.")
+        return 'No results found.'
+
+    url = f"{first_result_url}"
+    driver.get(url)
+    
+    # Wait for the page to load (increase sleep time if necessary)
+    time.sleep(5)
+    
+    try:
+        # Extract the product price from the new page (Update the selector based on the website's structure)
+        # Assuming the price can be found with a class name 'price' (adjust as necessary)
+        price_elements = driver.find_elements(By.CLASS_NAME, 'vtex-product-price-1-x-sellingPriceValue')  # Example selector
+        prices = []
+        for price_element in price_elements:
+            price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
+            if price_text:
+                try:
+                    prices.append(float(price_text))
+                except ValueError:
+                    print(f"Skipping invalid price: {price_text}")
+        
+        if prices:
+            cheapest_price = min(prices)
+        else:
+            cheapest_price = 'No prices found'
+        
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        cheapest_price = 'Failed to retrieve data'
+    finally:
+        driver.quit()
+    
+    return cheapest_price
+def get_price_paguemenos(product_name, company_name):
+    options = Options()
+    options.add_argument("--incognito")  # Open Chrome in incognito mode
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    
+    search_query = f"{product_name} {company_name}"
+    # Make the request to the Google Custom Search API
+    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={cx}')
+    data = response.json()
+
+    # Extract the URL of the first result
+    if 'items' in data and len(data['items']) > 0:
+        first_result_url = data['items'][0]['link']
+        print("First result URL:", first_result_url)
+    else:
+        print("No results found.")
+        return 'No results found.'
+
+    url = f"{first_result_url}"
+    driver.get(url)
+    
+    # Wait for the page to load (increase sleep time if necessary)
+    time.sleep(5)
+    
+    try:
+        # Extract the product price from the new page (Update the selector based on the website's structure)
+        # Assuming the price can be found with a class name 'price' (adjust as necessary)
+        price_elements = driver.find_elements(By.CLASS_NAME, 'vtex-store-components-3-x-currencyContainer')  # Example selector
+        prices = []
+        for price_element in price_elements:
+            price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
+            if price_text:
+                try:
+                    prices.append(float(price_text))
+                except ValueError:
+                    print(f"Skipping invalid price: {price_text}")
+        
+        if prices:
+            cheapest_price = min(prices)
+        else:
+            cheapest_price = 'No prices found'
+        
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        cheapest_price = 'Failed to retrieve data'
+    finally:
+        driver.quit()
+    
+    return cheapest_price
+
 
 # Example usage
-product_name = 'Lasix 40mg'  # Replace with any dynamic product name
+API_KEY = 'AIzaSyBO85yiFOb25j6B59tEva0_nKvl1FHlaBo'
+cx = '11738592a7f4346b0'
+product_name = 'Entresto 100mg 60 comprimidos'  # Replace with any dynamic product name
 cep = 'Belém Pará'  # Replace with the desired CEP 
+
+cheapest_price_globo = get_price_globo(product_name, 'Drogaria Globo')
+cheapest_price_paguemenos = get_price_paguemenos(product_name, 'Pague Menos')
 cheapest_price_ifood = get_ifood_price(product_name, cep)
 cheapest_price_drogasil = get_drogasil_price(product_name)
-print(f'O preço mais barato de {product_name} em {cep} no Ifood é: R$ {cheapest_price_ifood}\n')
+
+print(f'O preço mais barato de {product_name} na Drogaria Globo é: R$ {cheapest_price_globo}')
+print(f'O preço mais barato de {product_name} na Pague Menos é: R$ {cheapest_price_paguemenos}')
+print(f'O preço mais barato de {product_name} em {cep} no Ifood é: R$ {cheapest_price_ifood}')
 print(f'O preço mais barato de {product_name} na Drogasil é: R$ {cheapest_price_drogasil}')
