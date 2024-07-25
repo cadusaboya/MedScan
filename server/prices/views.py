@@ -100,50 +100,57 @@ def update_medicine_price(request, name):
     
     cep = request.data.get('cep', '')
 
+    prices_data = []
+    errors = []
+
     try:
         globo_price = get_price_globo(name, "Drogaria Globo")
+        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in globo_price.items()])
     except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        globo_price = {'Globo': 0}
+        errors.append(f"Failed to find Globo price: {str(e)}")
+
     try:
         paguemenos_price = get_price_paguemenos(name, "Pague Menos")
+        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in paguemenos_price.items()])
     except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        paguemenos_price = {'Pague Menos': 0}
+        errors.append(f"Failed to find Pague Menos price: {str(e)}")
+
     try:
         drogasil_price = get_drogasil_price(name)
+        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in drogasil_price.items()])
     except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        drogasil_price = {'Drogasil': 0}
+        errors.append(f"Failed to find Drogasil price: {str(e)}")
+
     try:
         ifood_price = get_ifood_price(name, cep)
+        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in ifood_price.items()])
     except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        ifood_price = {'iFood': 0}
+        errors.append(f"Failed to find iFood price: {str(e)}")
 
-    prices_data = []
-    for provider, price in {**ifood_price, **drogasil_price, **globo_price, **paguemenos_price}.items():
-        prices_data.append({
-            'medicine': medicine.id,
-            'provider': provider,
-            'price': price
-        })
-    
-    with transaction.atomic():
-        for price_data in prices_data:
-            existing_price = Price.objects.filter(
-                medicine=medicine,
-                provider=price_data['provider']
-            ).first()
-            
-            if existing_price:
-                serializer = PriceSerializer(existing_price, data=price_data, partial=False)  # Full update
-            else:
-                serializer = PriceSerializer(data=price_data)
-            
-            if serializer.is_valid():
-                serializer.save()
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    return Response({'message': 'Prices updated successfully'}, status=status.HTTP_200_OK)
+    if not prices_data:
+        return Response({'error': 'Failed to find prices for any provider', 'details': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        with transaction.atomic():
+            for price_data in prices_data:
+                existing_price = Price.objects.filter(
+                    medicine=medicine,
+                    provider=price_data['provider']
+                ).first()
+                
+                if existing_price:
+                    serializer = PriceSerializer(existing_price, data=price_data, partial=False)  # Full update
+                else:
+                    serializer = PriceSerializer(data=price_data)
+                
+                if serializer.is_valid():
+                    serializer.save()
+                else:
+                    errors.append(f"Invalid data for {price_data['provider']}: {serializer.errors}")
+
+        if errors:
+            return Response({'message': 'Prices updated with some errors', 'details': errors}, status=status.HTTP_207_MULTI_STATUS)
+        else:
+            return Response({'message': 'Prices updated successfully'}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': f'Failed to update prices: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)

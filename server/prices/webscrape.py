@@ -105,10 +105,10 @@ def get_ifood_price(product_name, cep):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 0
+            raise ValueError("No prices found for the product")
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 0
+        raise
     finally:
         driver.quit()
     
@@ -155,10 +155,10 @@ def get_drogasil_price(product_name):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 0
+            raise ValueError("No prices found for the product")
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 0
+        raise
     finally:
         driver.quit()
     
@@ -209,11 +209,10 @@ def get_price_globo(product_name, company_name):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 0
-        
+            raise ValueError("No prices found for the product")
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 0
+        raise
     finally:
         driver.quit()
     
@@ -259,11 +258,10 @@ def get_price_paguemenos(product_name, company_name):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 0
-        
+            raise ValueError("No prices found for the product")
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 0
+        raise
     finally:
         driver.quit()
     
