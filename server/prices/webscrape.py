@@ -6,6 +6,22 @@ from webdriver_manager.chrome import ChromeDriverManager
 import requests
 import time
 import urllib.parse
+import os
+from dotenv import load_dotenv
+
+def is_url_valid(url):
+    try:
+        response = requests.head(url, allow_redirects=True)
+        return response.status_code == 200
+    except requests.RequestException as e:
+        print(f"URL validation error: {e}")
+        return False
+
+# Load environment variables from .env file
+load_dotenv()
+
+API_KEY = os.getenv('API_KEY')
+CX = os.getenv('CX')
 
 def get_ifood_price(product_name, cep):
     if product_name == 'Entresto 100mg 60 comprimidos': product_name = 'Entresto 49mg + 51mg 60 comprimidos'
@@ -89,14 +105,15 @@ def get_ifood_price(product_name, cep):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 'No prices found'
+            cheapest_price = 0
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 'Failed to retrieve data'
+        cheapest_price = 0
     finally:
         driver.quit()
     
-    return cheapest_price
+    return {'iFood': cheapest_price}
+
 def get_drogasil_price(product_name):
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
@@ -108,7 +125,7 @@ def get_drogasil_price(product_name):
     driver.get(url)
     
     # Wait for the page to load (increase sleep time if necessary)
-    time.sleep(10)
+    time.sleep(15)
     
     try:    
         prices = []
@@ -138,34 +155,39 @@ def get_drogasil_price(product_name):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 'No prices found'
+            cheapest_price = 0
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 'Failed to retrieve data'
+        cheapest_price = 0
     finally:
         driver.quit()
     
-    return cheapest_price
+    return {'Drogasil': cheapest_price}
+
 def get_price_globo(product_name, company_name):
     if product_name == 'Entresto 100mg 60 comprimidos': product_name = 'Entresto 49mg + 51mg 60 comprimidos'
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
+    print(f"Searching for {product_name} at {company_name}")
     search_query = f"{product_name} {company_name}"
     # Make the request to the Google Custom Search API
-    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={cx}')
+    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={CX}')
     data = response.json()
 
-    # Extract the URL of the first result
+    # Extract the valid URL from the results
     if 'items' in data and len(data['items']) > 0:
-        first_result_url = data['items'][0]['link']
-        print("First result URL:", first_result_url)
+        for item in data['items']:
+            url = item['link']
+            if is_url_valid(url) and url.endswith('/p'):
+                print("Valid URL found:", url)
+                break
+        else:
+            print("No valid URLs found.")
     else:
         print("No results found.")
-        return 'No results found.'
 
-    url = f"{first_result_url}"
     driver.get(url)
     
     # Wait for the page to load (increase sleep time if necessary)
@@ -187,15 +209,16 @@ def get_price_globo(product_name, company_name):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 'No prices found'
+            cheapest_price = 0
         
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 'Failed to retrieve data'
+        cheapest_price = 0
     finally:
         driver.quit()
     
-    return cheapest_price
+    return {'Globo': cheapest_price}
+
 def get_price_paguemenos(product_name, company_name):
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
@@ -203,7 +226,7 @@ def get_price_paguemenos(product_name, company_name):
     
     search_query = f"{product_name} {company_name}"
     # Make the request to the Google Custom Search API
-    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={cx}')
+    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={CX}')
     data = response.json()
 
     # Extract the URL of the first result
@@ -236,29 +259,13 @@ def get_price_paguemenos(product_name, company_name):
         if prices:
             cheapest_price = min(prices)
         else:
-            cheapest_price = 'No prices found'
+            cheapest_price = 0
         
     except Exception as e:
         print(f"An error occurred: {e}")
-        cheapest_price = 'Failed to retrieve data'
+        cheapest_price = 0
     finally:
         driver.quit()
     
-    return cheapest_price
-
-
-# Example usage
-API_KEY = 'AIzaSyBO85yiFOb25j6B59tEva0_nKvl1FHlaBo'
-cx = '11738592a7f4346b0'
-product_name = 'Entresto 100mg 60 comprimidos'  # Replace with any dynamic product name
-cep = 'Belém Pará'  # Replace with the desired CEP 
-
-cheapest_price_globo = get_price_globo(product_name, 'Drogaria Globo')
-cheapest_price_paguemenos = get_price_paguemenos(product_name, 'Pague Menos')
-cheapest_price_ifood = get_ifood_price(product_name, cep)
-cheapest_price_drogasil = get_drogasil_price(product_name)
-
-print(f'O preço mais barato de {product_name} na Drogaria Globo é: R$ {cheapest_price_globo}')
-print(f'O preço mais barato de {product_name} na Pague Menos é: R$ {cheapest_price_paguemenos}')
-print(f'O preço mais barato de {product_name} em {cep} no Ifood é: R$ {cheapest_price_ifood}')
-print(f'O preço mais barato de {product_name} na Drogasil é: R$ {cheapest_price_drogasil}')
+    
+    return {'Pague Menos': cheapest_price}
