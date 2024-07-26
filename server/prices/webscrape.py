@@ -167,6 +167,7 @@ def get_drogasil_price(product_name):
 def get_price_globo(product_name, company_name):
     if product_name == 'Entresto 100mg 60 comprimidos': product_name = 'Entresto 49mg + 51mg 60 comprimidos'
     options = Options()
+    options.add_argument("--headless")  # Run Chrome in headless mode
     options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
@@ -176,50 +177,54 @@ def get_price_globo(product_name, company_name):
     response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={CX}')
     data = response.json()
 
-    # Extract the valid URL from the results
+    # Split the query into keywords
+    keywords = search_query.lower().split()
+
+    # Collect all valid URLs
+    valid_urls = []
     if 'items' in data and len(data['items']) > 0:
         for item in data['items']:
             url = item['link']
-            if is_url_valid(url) and url.endswith('/p'):
+            if is_url_valid(url) and url.endswith('/p') and all(keyword in url for keyword in keywords):
                 print("Valid URL found:", url)
-                break
-        else:
-            print("No valid URLs found.")
-    else:
-        print("No results found.")
+                valid_urls.append(url)
+    if not valid_urls:
+        print("No valid URLs found.")
+        raise ValueError("No prices found for the product")
 
-    driver.get(url)
-    
-    # Wait for the page to load (increase sleep time if necessary)
-    time.sleep(5)
-    
-    try:
-        # Extract the product price from the new page (Update the selector based on the website's structure)
-        # Assuming the price can be found with a class name 'price' (adjust as necessary)
-        price_elements = driver.find_elements(By.CLASS_NAME, 'vtex-product-price-1-x-sellingPriceValue')  # Example selector
-        prices = []
-        for price_element in price_elements:
-            price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
-            if price_text:
-                try:
-                    prices.append(float(price_text))
-                except ValueError:
-                    print(f"Skipping invalid price: {price_text}")
+    prices = []
+    for url in valid_urls:
+        driver.get(url)
+        # Wait for the page to load (increase sleep time if necessary)
+        time.sleep(5)
         
-        if prices:
-            cheapest_price = min(prices)
-        else:
-            raise ValueError("No prices found for the product")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-    finally:
-        driver.quit()
+        try:
+            # Extract the product price from the new page (Update the selector based on the website's structure)
+            # Assuming the price can be found with a class name 'price' (adjust as necessary)
+            price_elements = driver.find_elements(By.CLASS_NAME, 'vtex-product-price-1-x-sellingPriceValue')  # Example selector
+            for price_element in price_elements:
+                price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
+                if price_text:
+                    try:
+                        prices.append(float(price_text))
+                        print(f"Found price: {price_text}")
+                    except ValueError:
+                        print(f"Skipping invalid price: {price_text}")
+        except Exception as e:
+            print(f"An error occurred while processing {url}: {e}")
+
+    driver.quit()
+    
+    if prices:
+        cheapest_price = min(prices)
+    else:
+        raise ValueError("No prices found for the product")
     
     return {'Globo': cheapest_price}
 
 def get_price_paguemenos(product_name, company_name):
     options = Options()
+    options.add_argument("--headless")  # Run Chrome in headless mode
     options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
@@ -228,42 +233,48 @@ def get_price_paguemenos(product_name, company_name):
     response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={CX}')
     data = response.json()
 
-    # Extract the URL of the first result
-    if 'items' in data and len(data['items']) > 0:
-        first_result_url = data['items'][0]['link']
-        print("First result URL:", first_result_url)
-    else:
-        print("No results found.")
-        return 'No results found.'
+    # Split the query into keywords
+    keywords = search_query.lower().split()
 
-    url = f"{first_result_url}"
-    driver.get(url)
-    
-    # Wait for the page to load (increase sleep time if necessary)
-    time.sleep(5)
-    
-    try:
-        # Extract the product price from the new page (Update the selector based on the website's structure)
-        # Assuming the price can be found with a class name 'price' (adjust as necessary)
-        price_elements = driver.find_elements(By.CLASS_NAME, 'vtex-store-components-3-x-currencyContainer')  # Example selector
-        prices = []
-        for price_element in price_elements:
-            price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
-            if price_text:
-                try:
-                    prices.append(float(price_text))
-                except ValueError:
-                    print(f"Skipping invalid price: {price_text}")
+    # Collect all valid URLs
+    valid_urls = []
+    if 'items' in data and len(data['items']) > 0:
+        for item in data['items']:
+            url = item['link']
+            if is_url_valid(url) and url.endswith('/p') and all(keyword in url for keyword in keywords):
+                print("Valid URL found:", url)
+                valid_urls.append(url)
+
+    if not valid_urls:
+        print("No valid URLs found.")
+        raise ValueError("No prices found for the product")
+
+    print("Starting to collect prices...")
+    prices = []
+    for url in valid_urls:
+        driver.get(url)
+        # Wait for the page to load (increase sleep time if necessary)
+        time.sleep(5)
         
-        if prices:
-            cheapest_price = min(prices)
-        else:
-            raise ValueError("No prices found for the product")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        raise
-    finally:
-        driver.quit()
+        try:
+            # Extract the product price from the new page (Update the selector based on the website's structure)
+            # Assuming the price can be found with a class name 'price' (adjust as necessary)
+            price_elements = driver.find_elements(By.CLASS_NAME, 'vtex-store-components-3-x-currencyContainer')  # Example selector
+            for price_element in price_elements:
+                price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
+                if price_text:
+                    try:
+                        prices.append(float(price_text))
+                        print(f"Found price: {price_text}")
+                    except ValueError:
+                        print(f"Skipping invalid price: {price_text}")
+        except Exception as e:
+            print(f"An error occurred while processing {url}: {e}")
+
+    driver.quit()
     
-    
+    if prices:
+        cheapest_price = min(prices)
+    else:
+        raise ValueError("No prices found for the product")
     return {'Pague Menos': cheapest_price}
