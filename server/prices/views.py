@@ -40,7 +40,7 @@ def add_price_to_medicine(request, name):
         print(f"Failed to find price: {str(e)}")
         paguemenos_price = {'Pague Menos': 0}
     try:
-        drogasil_price = get_drogasil_price(name)
+        drogasil_price = get_drogasil_price(name, "Drogasil")
     except Exception as e:
         print(f"Failed to find price: {str(e)}")
         drogasil_price = {'Drogasil': 0}
@@ -116,7 +116,7 @@ def update_medicine_price(request, name):
         errors.append(f"Failed to find Pague Menos price: {str(e)}")
 
     try:
-        drogasil_price = get_drogasil_price(name)
+        drogasil_price = get_drogasil_price(name, "Drogasil")
         prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in drogasil_price.items()])
     except Exception as e:
         errors.append(f"Failed to find Drogasil price: {str(e)}")
