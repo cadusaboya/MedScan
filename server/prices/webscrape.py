@@ -110,75 +110,63 @@ def get_ifood_price(product_name, cep):
             raise ValueError("No prices found for the product")
     except Exception as e:
         print(f"An error occurred: {e}")
-        driver.save_screenshot('screenshot.png')
         raise
     finally:
         driver.quit()
     
     return {'iFood': cheapest_price}
 
-def get_drogasil_price(product_name, company_name):
+def get_drogasil_price(product_name):
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
-    search_query = f"{product_name} {company_name}"
-    # Make the request to the Google Custom Search API
-    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={CX}')
-    data = response.json()
-
-    # Split the query into keywords
-    keywords = search_query.lower().split()
-
-    # Collect all valid URLs
-    valid_urls = []
-    if 'items' in data and len(data['items']) > 0:
-        for item in data['items']:
-            url = item['link']
-            if is_url_valid(url) and all(keyword in url for keyword in keywords):
-                print("Valid URL found:", url)
-                valid_urls.append(url)
-
-    if not valid_urls:
-        print("No valid URLs found.")
-        raise ValueError("No prices found for the product")
-
-    print("Starting to collect prices...")
-    prices = []
-    for url in valid_urls:
-        driver.get(url)
-        
-        try:
-            # Extract the product price from the new page (Update the selector based on the website's structure)
-            # Assuming the price can be found with a class name 'price' (adjust as necessary)
-            price_elements = WebDriverWait(driver, 5).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'div.rd-container div.jHCMWj div.price-final .price-number')))
-            driver.save_screenshot('screenshot.png')
-            for price_element in price_elements:
-                price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
-                if price_text:
-                    try:
-                        prices.append(float(price_text))
-                        print(f"Found price: {price_text}")
-                    except ValueError:
-                        print(f"Skipping invalid price: {price_text}")
-        except Exception as e:
-            print(f"An error occurred while processing {url}: {e}")
-
-    driver.save_screenshot('screenshot_final.png')
-    driver.quit()
+    # Encode spaces in the product name as +
+    encoded_product_name = urllib.parse.quote_plus(product_name)
+    url = f'https://www.drogasil.com.br/search?w={encoded_product_name}'
+    driver.get(url)
     
-    if prices:
-        cheapest_price = min(prices)
-    else:
-        raise ValueError("No prices found for the product")
+    try:    
+        prices = []
+        
+        # Split the product_name into keywords
+        keywords = product_name.lower().split()
+        
+        # Locate product items
+        product_elements = WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'product-item')))
+        
+        for product_element in product_elements:
+                name_element = product_element.find_element(By.CLASS_NAME, 'product-card-name')  # Update with the correct class name for product names
+                price_elements = product_element.find_elements(By.CLASS_NAME, 'price-number')
+                
+                product_name_text = name_element.text.strip().lower()
+                
+                # Check if all keywords are present in the product name
+                if all(keyword in product_name_text for keyword in keywords):
+                    for price_element in price_elements:
+                        price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
+                        if price_text:  # Ensure the price_text is not empty
+                            try:
+                                prices.append(float(price_text))
+                            except ValueError:
+                                print(f"Skipping invalid price: {price_text}")
+        
+        if prices:
+            cheapest_price = min(prices)
+        else:
+            raise ValueError("No prices found for the product")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
+    finally:
+        driver.quit()
     
     return {'Drogasil': cheapest_price}
 
 def get_price_globo(product_name, company_name):
     if product_name == 'Entresto 100mg 60 comprimidos': product_name = 'Entresto 49mg + 51mg 60 comprimidos'
     options = Options()
-    options.add_argument("--headless")  # Run Chrome in headless mode
+    ##options.add_argument("--headless")  # Run Chrome in headless mode
     options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     

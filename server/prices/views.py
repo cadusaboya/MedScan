@@ -9,148 +9,52 @@ from .serializers import MedicineSerializer, PriceSerializer
 from django.http import JsonResponse
 from .webscrape import get_ifood_price, get_drogasil_price, get_price_globo, get_price_paguemenos
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
 @api_view(['GET'])
 def get_medicine_prices(request, name):
-    try:
-        medicine = Medicine.objects.get(name=name)
-    except Medicine.DoesNotExist:
-        return Response({"error": "Medicine not found"}, status=status.HTTP_404_NOT_FOUND)
+    cep = request.query_params.get('cep', '')
 
-    serializer = MedicineSerializer(medicine)
-    return Response(serializer.data)
-
-@api_view(['POST'])
-def add_price_to_medicine(request, name):
-    # Try to get the existing medicine, or create a new one
-    medicine, created = Medicine.objects.get_or_create(name=name)
-    
-    # Extract CEP and company_name from the request data if available
-    cep = request.data.get('cep', '')
-
-
-    # Fetch prices from webscraping functions
-    try:
-        globo_price = get_price_globo(name, "Drogaria Globo")
-    except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        globo_price = {'Globo': 0}
-    try:
-        paguemenos_price = get_price_paguemenos(name, "Pague Menos")
-    except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        paguemenos_price = {'Pague Menos': 0}
-    try:
-        drogasil_price = get_drogasil_price(name, "Drogasil")
-    except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        drogasil_price = {'Drogasil': 0}
-    try:
-        ifood_price = get_ifood_price(name, cep)
-    except Exception as e:
-        print(f"Failed to find price: {str(e)}")
-        ifood_price = {'iFood': 0}
-    
-    # Prepare prices data for saving
-    prices_data = []
-
-    for provider, price in ifood_price.items():
-        prices_data.append({
-            'medicine': medicine.id,
-            'provider': provider,
-            'price': price
-        })
-
-    for provider, price in drogasil_price.items():
-        prices_data.append({
-            'medicine': medicine.id,
-            'provider': provider,
-            'price': price
-        })
-
-    for provider, price in globo_price.items():
-        prices_data.append({
-            'medicine': medicine.id,
-            'provider': provider,
-            'price': price
-        })
-
-    for provider, price in paguemenos_price.items():
-        prices_data.append({
-            'medicine': medicine.id,
-            'provider': provider,
-            'price': price
-        })
-    
-    # Create and save Price objects
-    for price_data in prices_data:
-        serializer = PriceSerializer(data=price_data)
-        if serializer.is_valid():
-            serializer.save()
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    return Response({'message': 'Prices added successfully'}, status=status.HTTP_201_CREATED)
-
-
-@api_view(['PUT'])
-def update_medicine_price(request, name):
-    medicine = Medicine.objects.filter(name=name).first()
-    if not medicine:
-        return Response({'error': 'Medicine not found'}, status=status.HTTP_404_NOT_FOUND)
-    
-    cep = request.data.get('cep', '')
-
-    prices_data = []
-    errors = []
+    # Initialize a dictionary to store the lowest prices from each provider
+    prices = {}
 
     try:
         globo_price = get_price_globo(name, "Drogaria Globo")
-        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in globo_price.items()])
+        if globo_price:
+            prices.update(globo_price)
     except Exception as e:
-        errors.append(f"Failed to find Globo price: {str(e)}")
+        print(f"Failed to find Globo price: {str(e)}")
 
     try:
         paguemenos_price = get_price_paguemenos(name, "Pague Menos")
-        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in paguemenos_price.items()])
+        if paguemenos_price:
+            prices.update(paguemenos_price)
     except Exception as e:
-        errors.append(f"Failed to find Pague Menos price: {str(e)}")
+        print(f"Failed to find Pague Menos price: {str(e)}")
 
     try:
-        drogasil_price = get_drogasil_price(name, "Drogasil")
-        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in drogasil_price.items()])
+        drogasil_price = get_drogasil_price(name)
+        if drogasil_price:
+            prices.update(drogasil_price)
     except Exception as e:
-        errors.append(f"Failed to find Drogasil price: {str(e)}")
+        print(f"Failed to find Drogasil price: {str(e)}")
 
     try:
         ifood_price = get_ifood_price(name, cep)
-        prices_data.extend([{'medicine': medicine.id, 'provider': provider, 'price': price} for provider, price in ifood_price.items()])
+        if ifood_price:
+            prices.update(ifood_price)
     except Exception as e:
-        errors.append(f"Failed to find iFood price: {str(e)}")
+        print(f"Failed to find iFood price: {str(e)}")
 
-    if not prices_data:
-        return Response({'error': 'Failed to find prices for any provider', 'details': errors}, status=status.HTTP_400_BAD_REQUEST)
+    # Filter out None values and return the prices
+    valid_prices = {provider: price for provider, price in prices.items() if price is not None}
 
-    try:
-        with transaction.atomic():
-            for price_data in prices_data:
-                existing_price = Price.objects.filter(
-                    medicine=medicine,
-                    provider=price_data['provider']
-                ).first()
-                
-                if existing_price:
-                    serializer = PriceSerializer(existing_price, data=price_data, partial=False)  # Full update
-                else:
-                    serializer = PriceSerializer(data=price_data)
-                
-                if serializer.is_valid():
-                    serializer.save()
-                else:
-                    errors.append(f"Invalid data for {price_data['provider']}: {serializer.errors}")
+    if not valid_prices:
+        return Response({"error": "No prices found for the product"}, status=status.HTTP_404_NOT_FOUND)
 
-        if errors:
-            return Response({'message': 'Prices updated with some errors', 'details': errors}, status=status.HTTP_207_MULTI_STATUS)
-        else:
-            return Response({'message': 'Prices updated successfully'}, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({'error': f'Failed to update prices: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({
+        'name': name,
+        'lowest_prices': valid_prices
+    }, status=status.HTTP_200_OK)
