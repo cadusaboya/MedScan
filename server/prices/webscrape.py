@@ -112,6 +112,7 @@ def get_ifood_price(product_name, cep):
         print(f"An error occurred: {e}")
         raise
     finally:
+        print("Ifood found price: ", cheapest_price)
         driver.quit()
     
     return {'iFood': cheapest_price}
@@ -148,6 +149,7 @@ def get_drogasil_price(product_name):
                         if price_text:  # Ensure the price_text is not empty
                             try:
                                 prices.append(float(price_text))
+                                print(f"Drogasil found price: {price_text}")
                             except ValueError:
                                 print(f"Skipping invalid price: {price_text}")
         
@@ -205,7 +207,7 @@ def get_price_globo(product_name, company_name):
                 if price_text:
                     try:
                         prices.append(float(price_text))
-                        print(f"Found price: {price_text}")
+                        print(f"Globo found price: {price_text}")
                     except ValueError:
                         print(f"Skipping invalid price: {price_text}")
         except Exception as e:
@@ -262,7 +264,7 @@ def get_price_paguemenos(product_name, company_name):
                 if price_text:
                     try:
                         prices.append(float(price_text))
-                        print(f"Found price: {price_text}")
+                        print(f"Pague Menos found price: {price_text}")
                     except ValueError:
                         print(f"Skipping invalid price: {price_text}")
         except Exception as e:
