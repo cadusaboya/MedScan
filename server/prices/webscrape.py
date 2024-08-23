@@ -12,7 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 import concurrent.futures
 
-
 def is_url_valid(url):
     try:
         response = requests.head(url, allow_redirects=True)
@@ -31,7 +30,7 @@ def get_ifood_price(product_name, cep):
     if product_name == 'entresto 100mg': product_name = 'entresto 49mg 51mg'
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
     
     # Encode spaces in the product name as %20
     encoded_product_name = urllib.parse.quote(product_name)
@@ -117,12 +116,12 @@ def get_ifood_price(product_name, cep):
         print("Ifood found price: ", cheapest_price)
         driver.quit()
     
-    return {'iFood': cheapest_price}
+    return cheapest_price
 
 def get_drogasil_price(product_name):
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
     
     # Encode spaces in the product name as +
     encoded_product_name = urllib.parse.quote_plus(product_name)
@@ -136,7 +135,7 @@ def get_drogasil_price(product_name):
         keywords = product_name.lower().split()
         
         # Locate product items
-        product_elements = WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'product-item')))
+        product_elements = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'product-item')))
         
         for product_element in product_elements:
                 name_element = product_element.find_element(By.CLASS_NAME, 'product-card-name')  # Update with the correct class name for product names
@@ -165,7 +164,7 @@ def get_drogasil_price(product_name):
     finally:
         driver.quit()
     
-    return {'Drogasil': cheapest_price}
+    return cheapest_price
 
 def get_price_globo(product_name, company_name):
     if product_name == 'entresto 100mg': 
@@ -185,7 +184,6 @@ def get_price_globo(product_name, company_name):
     if 'items' in data and len(data['items']) > 0:
         for item in data['items']:
             url = item['link']
-            print(url)
             if is_url_valid(url) and url.endswith('/p') and all(keyword in url for keyword in keywords):
                 print("Valid URL found:", url)
                 valid_urls.append(url)
@@ -197,9 +195,8 @@ def get_price_globo(product_name, company_name):
 
     def process_url(url):
         options = Options()
-        options.add_argument("--headless")
         options.add_argument("--incognito")  # Open Chrome in incognito mode
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
         local_prices = []
         try:
             driver.get(url)
@@ -232,14 +229,10 @@ def get_price_globo(product_name, company_name):
     else:
         raise ValueError("No prices found for the product")
     
-    return {'Globo': cheapest_price}
+    return cheapest_price
 
 
 def get_price_paguemenos(product_name, company_name):
-    options = Options()
-    options.add_argument("--headless")  # Run Chrome in headless mode
-    options.add_argument("--incognito")  # Open Chrome in incognito mode
-    
     search_query = f"{product_name} {company_name}"
     # Make the request to the Google Custom Search API
     response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={CX}')
@@ -267,12 +260,12 @@ def get_price_paguemenos(product_name, company_name):
     def process_url(url):
         local_prices = []
         options = Options()
-        options.add_argument("--headless")  # Run Chrome in headless mode
         options.add_argument("--incognito")  # Open Chrome in incognito mode
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
         try:
             driver.get(url)
-            # Extract the product price from the new page (Update the selector based on the website's structure)
+            time.sleep(0.1)
+            driver.get(url)
             price_elements = WebDriverWait(driver, 5).until(
                 EC.presence_of_all_elements_located((By.CLASS_NAME, 'vtex-store-components-3-x-currencyContainer')))  # Example selector
             for price_element in price_elements:
@@ -300,4 +293,4 @@ def get_price_paguemenos(product_name, company_name):
     else:
         raise ValueError("No prices found for the product")
     
-    return {'Pague Menos': cheapest_price}
+    return cheapest_price
