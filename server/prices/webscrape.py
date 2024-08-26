@@ -135,7 +135,7 @@ def get_drogasil_price(product_name):
         keywords = product_name.lower().split()
         
         # Locate product items
-        product_elements = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'product-item')))
+        product_elements = WebDriverWait(driver, 25).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'product-item')))
         
         for product_element in product_elements:
                 name_element = product_element.find_element(By.CLASS_NAME, 'product-card-name')  # Update with the correct class name for product names

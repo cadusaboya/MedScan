@@ -13,12 +13,11 @@ struct ContentView: View {
     @State private var globoPrice: Double?
     @State private var pagueMenosPrice: Double?
     @State private var ifoodPrice: Double?
-    @State private var isLoadingDrogasil: Bool = false
-    @State private var isLoadingGlobo: Bool = false
-    @State private var isLoadingPagueMenos: Bool = false
-    @State private var isLoadingIFood: Bool = false
+    @State private var isLoading: Bool = false
+    @State private var showTable: Bool = false
     @State private var selectedProviderURL: URL?
     @State private var showSafari: Bool = false
+    @State private var pendingRequests: Int = 0
 
     var body: some View {
         NavigationView {
@@ -40,9 +39,13 @@ struct ContentView: View {
                     .autocapitalization(.none)
 
                 Button(action: {
+                    resetValues()
+                    isLoading = true
+                    showTable = false
+                    pendingRequests = 4 // Number of providers
                     fetchPrices()
                 }) {
-                    Text("Search")
+                    Text("Buscar")
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.black)
@@ -51,23 +54,20 @@ struct ContentView: View {
                 }
                 .padding()
 
-                List {
-                    HStack {
-                        Text("Fornecedor")
-                            .frame(width: 150, alignment: .leading) // Fixed width for provider names
-                            .fontWeight(.bold)
-                        Text("Price")
-                            .frame(width: 100, alignment: .leading) // Fixed width for prices
-                            .fontWeight(.bold)
-                        Text("") // Empty space for button
-                            .frame(width: 80, alignment: .leading) // Fixed width for button space
+                if showTable {
+                    List {
+                        ForEach(sortedPrices(), id: \.name) { provider in
+                            priceRow(name: provider.name, price: provider.price, provider: provider.provider)
+                        }
                     }
-                    .frame(height: 50) // Fixed height for header row
+                }
 
-                    priceRow(name: "Drogasil", price: drogasilPrice, isLoading: isLoadingDrogasil, provider: "drogasil")
-                    priceRow(name: "Drogaria Globo", price: globoPrice, isLoading: isLoadingGlobo, provider: "globo")
-                    priceRow(name: "Pague Menos", price: pagueMenosPrice, isLoading: isLoadingPagueMenos, provider: "paguemenos")
-                    priceRow(name: "iFood", price: ifoodPrice, isLoading: isLoadingIFood, provider: "ifood")
+                if isLoading {
+                    VStack {
+                        ProgressView()
+                        Text("Buscando preços...")
+                            .padding(.top, 10)
+                    }
                 }
             }
             .padding()
@@ -81,29 +81,37 @@ struct ContentView: View {
         }
     }
 
-    func fetchPrices() {
-        fetchProviderPrice(apiEndpoint: "drogasil", isLoading: $isLoadingDrogasil, price: $drogasilPrice)
-        fetchProviderPrice(apiEndpoint: "globo", isLoading: $isLoadingGlobo, price: $globoPrice)
-        fetchProviderPrice(apiEndpoint: "paguemenos", isLoading: $isLoadingPagueMenos, price: $pagueMenosPrice)
-        fetchProviderPrice(apiEndpoint: "ifood", isLoading: $isLoadingIFood, price: $ifoodPrice)
+    func resetValues() {
+        drogasilPrice = nil
+        globoPrice = nil
+        pagueMenosPrice = nil
+        ifoodPrice = nil
     }
 
-    func fetchProviderPrice(apiEndpoint: String, isLoading: Binding<Bool>, price: Binding<Double?>) {
-        isLoading.wrappedValue = true
+    func fetchPrices() {
+        fetchProviderPrice(apiEndpoint: "drogasil", price: $drogasilPrice)
+        fetchProviderPrice(apiEndpoint: "globo", price: $globoPrice)
+        fetchProviderPrice(apiEndpoint: "paguemenos", price: $pagueMenosPrice)
+        fetchProviderPrice(apiEndpoint: "ifood", price: $ifoodPrice)
+    }
+
+    func fetchProviderPrice(apiEndpoint: String, price: Binding<Double?>) {
         let urlString = "http://localhost:8000/api/\(apiEndpoint)/\(medicineName.lowercased())/?cep=\(cep)"
         
         guard let url = URL(string: urlString) else {
-            isLoading.wrappedValue = false
+            updateLoadingState()
             return
         }
         
         let task = URLSession.shared.dataTask(with: url) { data, response, error in
             DispatchQueue.main.async {
-                isLoading.wrappedValue = false
                 if let data = data {
                     if let decodedResponse = try? JSONDecoder().decode(PriceResponse.self, from: data) {
                         print("Decoded \(apiEndpoint.capitalized) Response: \(decodedResponse)") // Debug print
                         price.wrappedValue = decodedResponse.lowest_price
+                        if !showTable {
+                            showTable = true
+                        }
                     } else {
                         print("Failed to decode \(apiEndpoint.capitalized) response: \(String(data: data, encoding: .utf8) ?? "No data")") // Debug print
                         price.wrappedValue = nil
@@ -112,35 +120,54 @@ struct ContentView: View {
                     print("No data received or error for \(apiEndpoint.capitalized): \(error?.localizedDescription ?? "Unknown error")") // Debug print
                     price.wrappedValue = nil
                 }
+                updateLoadingState()
             }
         }
         task.resume()
     }
 
-    func priceRow(name: String, price: Double?, isLoading: Bool, provider: String) -> some View {
+    func updateLoadingState() {
+        pendingRequests -= 1
+        if pendingRequests == 0 {
+            isLoading = false
+        }
+    }
+
+    func sortedPrices() -> [(name: String, price: Double, provider: String)] {
+        let providers = [
+            ("Drogasil", drogasilPrice, "drogasil"),
+            ("Drogaria Globo", globoPrice, "globo"),
+            ("Pague Menos", pagueMenosPrice, "paguemenos"),
+            ("iFood", ifoodPrice, "ifood")
+        ]
+        
+        return providers
+            .compactMap { name, price, provider in
+                if let price = price {
+                    return (name: name, price: price, provider: provider)
+                } else {
+                    return nil
+                }
+            }
+            .sorted { $0.price < $1.price }
+    }
+
+    func priceRow(name: String, price: Double, provider: String) -> some View {
         HStack {
             Text(name)
-                .frame(width: 150, alignment: .leading) // Fixed width for provider names
-            if isLoading {
-                ProgressView()
-                    .frame(width: 100, alignment: .leading) // Fixed width for loading indicator
-            } else if let price = price {
-                Text(String(format: "R$ %.2f", price))
-                    .frame(width: 100, alignment: .leading) // Fixed width for price
-                Button(action: {
-                    guard let url = URL(string: "https://\(provider).com.br/\(medicineName.lowercased().replacingOccurrences(of: " ", with: "-"))") else { return }
-                    selectedProviderURL = url
-                    showSafari = true
-                }) {
-                    Text("Buy")
-                        .frame(width: 80, height: 40)
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-            } else {
-                Text("N/A")
-                    .frame(width: 100, alignment: .leading) // Fixed width for N/A
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(String(format: "R$ %.2f", price))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: {
+                guard let url = URL(string: "https://\(provider).com.br/\(medicineName.lowercased().replacingOccurrences(of: " ", with: "-"))") else { return }
+                selectedProviderURL = url
+                showSafari = true
+            }) {
+                Text("Comprar")
+                    .padding(8)
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
             }
         }
         .frame(height: 50) // Fixed height for rows
