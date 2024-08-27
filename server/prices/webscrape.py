@@ -28,6 +28,7 @@ CX = os.getenv('CX')
 
 def get_ifood_price(product_name, cep):
     if product_name == 'entresto 100mg': product_name = 'entresto 49mg 51mg'
+    
     options = Options()
     options.add_argument("--incognito")  # Open Chrome in incognito mode
     driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
@@ -81,6 +82,8 @@ def get_ifood_price(product_name, cep):
         time.sleep(2)  # Increase sleep time if needed
         
         prices = []
+        urls = []
+        names = []
         
         # Split the product_name into keywords
         keywords = product_name.lower().split()
@@ -89,34 +92,42 @@ def get_ifood_price(product_name, cep):
         product_elements = driver.find_elements(By.CLASS_NAME, 'merchant-list-carousel__item')  # Update with the correct class name for products
         
         for product_element in product_elements:
-                name_element = product_element.find_element(By.CLASS_NAME, 'merchant-list-carousel__item-title')  # Update with the correct class name for product names
-                price_elements = product_element.find_elements(By.CLASS_NAME, 'card-stack-item-price--regular') + \
-                                 product_element.find_elements(By.CLASS_NAME, 'card-stack-item-price--promotion')
-                
-                product_name_text = name_element.text.strip().lower()
-                
-                # Check if all keywords are present in the product name
-                if all(keyword in product_name_text for keyword in keywords):
-                    for price_element in price_elements:
-                        price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
-                        if price_text:  # Ensure the price_text is not empty
-                            try:
-                                prices.append(float(price_text))
-                            except ValueError:
-                                print(f"Skipping invalid price: {price_text}")
+            name_element = product_element.find_element(By.CLASS_NAME, 'merchant-list-carousel__item-title')  # Update with the correct class name for product names
+            price_elements = product_element.find_elements(By.CLASS_NAME, 'card-stack-item-price--regular') + \
+                             product_element.find_elements(By.CLASS_NAME, 'card-stack-item-price--promotion')
+            
+            product_name_text = name_element.text.strip().lower()
+            
+            # Check if all keywords are present in the product name
+            if all(keyword in product_name_text for keyword in keywords):
+                for price_element in price_elements:
+                    price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
+                    if price_text:  # Ensure the price_text is not empty
+                        try:
+                            prices.append(float(price_text))
+                            names.append(name_element.text.strip())  # Add the product name to the list
+                        except ValueError:
+                            print(f"Skipping invalid price: {price_text}")
         
         if prices:
-            cheapest_price = min(prices)
+            min_price_index = prices.index(min(prices))
+            cheapest_price = prices[min_price_index]
+            cheapest_name = names[min_price_index]
         else:
             raise ValueError("No prices found for the product")
     except Exception as e:
         print(f"An error occurred: {e}")
-        raise
+        cheapest_price = None
+        cheapest_name = None
     finally:
-        print("Ifood found price: ", cheapest_price)
+        print(f"Ifood found price: {cheapest_price} for {cheapest_name}", cheapest_price)
         driver.quit()
     
-    return cheapest_price
+    return {
+        "name": cheapest_name,
+        "price": cheapest_price
+    }
+
 
 def get_drogasil_price(product_name):
     options = Options()
@@ -130,6 +141,7 @@ def get_drogasil_price(product_name):
     
     try:    
         prices = []
+        names = []
         
         # Split the product_name into keywords
         keywords = product_name.lower().split()
@@ -138,33 +150,40 @@ def get_drogasil_price(product_name):
         product_elements = WebDriverWait(driver, 25).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'product-item')))
         
         for product_element in product_elements:
-                name_element = product_element.find_element(By.CLASS_NAME, 'product-card-name')  # Update with the correct class name for product names
-                price_elements = product_element.find_elements(By.CLASS_NAME, 'price-number')
-                
-                product_name_text = name_element.text.strip().lower()
-                
-                # Check if all keywords are present in the product name
-                if all(keyword in product_name_text for keyword in keywords):
-                    for price_element in price_elements:
-                        price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
-                        if price_text:  # Ensure the price_text is not empty
-                            try:
-                                prices.append(float(price_text))
-                                print(f"Drogasil found price: {price_text}")
-                            except ValueError:
-                                print(f"Skipping invalid price: {price_text}")
+            name_element = product_element.find_element(By.CLASS_NAME, 'product-card-name')  # Locate product name element
+            price_elements = product_element.find_elements(By.CLASS_NAME, 'price-number')
+            
+            product_name_text = name_element.text.strip().lower()
+            
+            # Check if all keywords are present in the product name
+            if all(keyword in product_name_text for keyword in keywords):
+                for price_element in price_elements:
+                    price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
+                    if price_text:  # Ensure the price_text is not empty
+                        try:
+                            prices.append(float(price_text))
+                            names.append(name_element.text.strip())  # Add the product name to the list
+                            print(f"Drogasil found price: {price_text} for {name_element.text.strip()}")
+                        except ValueError:
+                            print(f"Skipping invalid price: {price_text}")
         
         if prices:
-            cheapest_price = min(prices)
+            min_price_index = prices.index(min(prices))
+            cheapest_price = prices[min_price_index]
+            cheapest_name = names[min_price_index]
         else:
             raise ValueError("No prices found for the product")
     except Exception as e:
         print(f"An error occurred: {e}")
-        raise
+        cheapest_price = None
+        cheapest_name = None
     finally:
         driver.quit()
     
-    return cheapest_price
+    return {
+        "name": cheapest_name,
+        "price": cheapest_price
+    }
 
 def get_price_globo(product_name, company_name):
     if product_name == 'entresto 100mg': 
@@ -192,47 +211,62 @@ def get_price_globo(product_name, company_name):
         raise ValueError("No prices found for the product")
 
     prices = []
+    names = []  # List to store product names
 
     def process_url(url):
         options = Options()
         options.add_argument("--incognito")  # Open Chrome in incognito mode
         driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
         local_prices = []
+        local_names = []  # Local list to store names
         try:
             driver.get(url)
-            # Extract the product price from the new page (Update the selector based on the website's structure)
+            # Extract the product name and price from the page
+            name_element = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CLASS_NAME, 'vtex-store-components-3-x-productBrand--dagProductName'))  # Update with correct class for product name
+            )
+            product_name_text = name_element.text.strip()
+            
             price_elements = WebDriverWait(driver, 5).until(
-                EC.presence_of_all_elements_located((By.CLASS_NAME, 'vtex-product-price-1-x-sellingPriceValue')))
+                EC.presence_of_all_elements_located((By.CLASS_NAME, 'vtex-product-price-1-x-sellingPriceValue'))
+            )
             for price_element in price_elements:
                 price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
                 if price_text:
                     try:
                         local_prices.append(float(price_text))
-                        print(f"Globo found price: {price_text}")
+                        local_names.append(product_name_text)  # Store the name associated with the price
+                        print(f"Globo found price: {price_text} for {product_name_text}")
                     except ValueError:
                         print(f"Skipping invalid price: {price_text}")
         except Exception as e:
             print(f"An error occurred while processing {url}: {e}")
         finally:
             driver.quit()
-        return local_prices
+        return local_prices, local_names
 
     print("Starting to collect Globo prices...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [executor.submit(process_url, url) for url in valid_urls]
         for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            prices.extend(result)
+            result_prices, result_names = future.result()
+            prices.extend(result_prices)
+            names.extend(result_names)
 
     if prices:
-        cheapest_price = min(prices)
+        min_price_index = prices.index(min(prices))
+        cheapest_price = prices[min_price_index]
+        cheapest_name = names[min_price_index]
     else:
         raise ValueError("No prices found for the product")
     
-    return cheapest_price
-
+    return {
+        "name": cheapest_name,
+        "price": cheapest_price
+    }
 
 def get_price_paguemenos(product_name, company_name):
+
     search_query = f"{product_name} {company_name}"
     # Make the request to the Google Custom Search API
     response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={search_query}&key={API_KEY}&cx={CX}')
@@ -256,9 +290,11 @@ def get_price_paguemenos(product_name, company_name):
 
     print("Starting to collect Pague Menos prices...")
     prices = []
+    names = []
 
     def process_url(url):
         local_prices = []
+        local_names = []
         options = Options()
         options.add_argument("--incognito")  # Open Chrome in incognito mode
         driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
@@ -266,31 +302,45 @@ def get_price_paguemenos(product_name, company_name):
             driver.get(url)
             time.sleep(0.1)
             driver.get(url)
+            
+            # Extract the product name and price from the page
+            name_element = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CLASS_NAME, 'vtex-store-components-3-x-productBrand '))  # Update with the correct class name for product name
+            )
+            product_name_text = name_element.text.strip()
+            
             price_elements = WebDriverWait(driver, 5).until(
-                EC.presence_of_all_elements_located((By.CLASS_NAME, 'vtex-store-components-3-x-currencyContainer')))  # Example selector
+                EC.presence_of_all_elements_located((By.CLASS_NAME, 'vtex-store-components-3-x-currencyContainer')))  # Update with the correct class name for price
             for price_element in price_elements:
                 price_text = price_element.text.strip().replace('R$', '').replace('.', '').replace(',', '.').replace('\u00a0', '')
                 if price_text:
                     try:
                         local_prices.append(float(price_text))
-                        print(f"Pague Menos found price: {price_text}")
+                        local_names.append(product_name_text)
+                        print(f"Pague Menos found price: {price_text} for {product_name_text}")
                     except ValueError:
                         print(f"Skipping invalid price: {price_text}")
         except Exception as e:
             print(f"An error occurred while processing {url}: {e}")
         finally:
             driver.quit()
-        return local_prices
+        return local_prices, local_names
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [executor.submit(process_url, url) for url in valid_urls]
         for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            prices.extend(result)
+            result_prices, result_names = future.result()
+            prices.extend(result_prices)
+            names.extend(result_names)
 
     if prices:
-        cheapest_price = min(prices)
+        min_price_index = prices.index(min(prices))
+        cheapest_price = prices[min_price_index]
+        cheapest_name = names[min_price_index]
     else:
         raise ValueError("No prices found for the product")
     
-    return cheapest_price
+    return {
+        "name": cheapest_name,
+        "price": cheapest_price
+    }

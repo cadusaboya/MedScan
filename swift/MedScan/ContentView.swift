@@ -9,10 +9,10 @@ struct PriceResponse: Codable {
 struct ContentView: View {
     @State private var medicineName: String = ""
     @State private var cep: String = ""
-    @State private var drogasilPrice: Double?
-    @State private var globoPrice: Double?
-    @State private var pagueMenosPrice: Double?
-    @State private var ifoodPrice: Double?
+    @State private var drogasilPriceResponse: PriceResponse?
+    @State private var globoPriceResponse: PriceResponse?
+    @State private var pagueMenosPriceResponse: PriceResponse?
+    @State private var ifoodPriceResponse: PriceResponse?
     @State private var isLoading: Bool = false
     @State private var showTable: Bool = false
     @State private var selectedProviderURL: URL?
@@ -55,10 +55,17 @@ struct ContentView: View {
                 .padding()
 
                 if showTable {
-                    List {
-                        ForEach(sortedPrices(), id: \.name) { provider in
-                            priceRow(name: provider.name, price: provider.price, provider: provider.provider)
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(sortedPrices(), id: \.name) { provider in
+                                CardView(name: provider.name, price: provider.price, productName: provider.productName, provider: provider.provider, action: {
+                                    guard let url = URL(string: "https://\(provider.provider).com.br/\(medicineName.lowercased().replacingOccurrences(of: " ", with: "-"))") else { return }
+                                    selectedProviderURL = url
+                                    showSafari = true
+                                })
+                            }
                         }
+                        .padding()
                     }
                 }
 
@@ -82,20 +89,20 @@ struct ContentView: View {
     }
 
     func resetValues() {
-        drogasilPrice = nil
-        globoPrice = nil
-        pagueMenosPrice = nil
-        ifoodPrice = nil
+        drogasilPriceResponse = nil
+        globoPriceResponse = nil
+        pagueMenosPriceResponse = nil
+        ifoodPriceResponse = nil
     }
 
     func fetchPrices() {
-        fetchProviderPrice(apiEndpoint: "drogasil", price: $drogasilPrice)
-        fetchProviderPrice(apiEndpoint: "globo", price: $globoPrice)
-        fetchProviderPrice(apiEndpoint: "paguemenos", price: $pagueMenosPrice)
-        fetchProviderPrice(apiEndpoint: "ifood", price: $ifoodPrice)
+        fetchProviderPrice(apiEndpoint: "drogasil", priceResponse: $drogasilPriceResponse)
+        fetchProviderPrice(apiEndpoint: "globo", priceResponse: $globoPriceResponse)
+        fetchProviderPrice(apiEndpoint: "paguemenos", priceResponse: $pagueMenosPriceResponse)
+        fetchProviderPrice(apiEndpoint: "ifood", priceResponse: $ifoodPriceResponse)
     }
 
-    func fetchProviderPrice(apiEndpoint: String, price: Binding<Double?>) {
+    func fetchProviderPrice(apiEndpoint: String, priceResponse: Binding<PriceResponse?>) {
         let urlString = "http://localhost:8000/api/\(apiEndpoint)/\(medicineName.lowercased())/?cep=\(cep)"
         
         guard let url = URL(string: urlString) else {
@@ -103,28 +110,37 @@ struct ContentView: View {
             return
         }
         
-        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+        // Create a custom URLSessionConfiguration with increased timeout interval
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 60.0 // Set timeout interval (in seconds)
+        
+        // Initialize URLSession with the custom configuration
+        let session = URLSession(configuration: configuration)
+        
+        let task = session.dataTask(with: url) { data, response, error in
             DispatchQueue.main.async {
                 if let data = data {
                     if let decodedResponse = try? JSONDecoder().decode(PriceResponse.self, from: data) {
                         print("Decoded \(apiEndpoint.capitalized) Response: \(decodedResponse)") // Debug print
-                        price.wrappedValue = decodedResponse.lowest_price
+                        priceResponse.wrappedValue = decodedResponse
                         if !showTable {
                             showTable = true
                         }
                     } else {
                         print("Failed to decode \(apiEndpoint.capitalized) response: \(String(data: data, encoding: .utf8) ?? "No data")") // Debug print
-                        price.wrappedValue = nil
+                        priceResponse.wrappedValue = nil
                     }
                 } else {
                     print("No data received or error for \(apiEndpoint.capitalized): \(error?.localizedDescription ?? "Unknown error")") // Debug print
-                    price.wrappedValue = nil
+                    priceResponse.wrappedValue = nil
                 }
                 updateLoadingState()
             }
         }
         task.resume()
     }
+
+
 
     func updateLoadingState() {
         pendingRequests -= 1
@@ -133,44 +149,66 @@ struct ContentView: View {
         }
     }
 
-    func sortedPrices() -> [(name: String, price: Double, provider: String)] {
+    func sortedPrices() -> [(name: String, price: Double, productName: String, provider: String)] {
         let providers = [
-            ("Drogasil", drogasilPrice, "drogasil"),
-            ("Drogaria Globo", globoPrice, "globo"),
-            ("Pague Menos", pagueMenosPrice, "paguemenos"),
-            ("iFood", ifoodPrice, "ifood")
+            ("Drogasil", drogasilPriceResponse, "drogasil"),
+            ("Drogaria Globo", globoPriceResponse, "globo"),
+            ("Pague Menos", pagueMenosPriceResponse, "paguemenos"),
+            ("iFood", ifoodPriceResponse, "ifood")
         ]
         
         return providers
-            .compactMap { name, price, provider in
-                if let price = price {
-                    return (name: name, price: price, provider: provider)
+            .compactMap { name, priceResponse, provider in
+                if let response = priceResponse {
+                    return (name: name, price: response.lowest_price, productName: response.name, provider: provider)
                 } else {
                     return nil
                 }
             }
             .sorted { $0.price < $1.price }
     }
+}
 
-    func priceRow(name: String, price: Double, provider: String) -> some View {
+struct CardView: View {
+    let name: String
+    let price: Double
+    let productName: String
+    let provider: String
+    let action: () -> Void
+
+    var body: some View {
         HStack {
-            Text(name)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(String(format: "R$ %.2f", price))
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: {
-                guard let url = URL(string: "https://\(provider).com.br/\(medicineName.lowercased().replacingOccurrences(of: " ", with: "-"))") else { return }
-                selectedProviderURL = url
-                showSafari = true
-            }) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(name)
+                    .font(.headline)
+                    .lineLimit(1)
+                
+                Text(productName)
+                    .font(.subheadline)
+                    .lineLimit(5)
+                
+                Text(String(format: "R$ %.2f", price))
+                    .font(.subheadline)
+                    .foregroundColor(.green)
+            }
+            .padding()
+            
+            Spacer()
+            
+            Button(action: action) {
                 Text("Comprar")
-                    .padding(8)
+                    .font(.subheadline)
+                    .padding()
                     .background(Color.green)
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
         }
-        .frame(height: 50) // Fixed height for rows
+        .padding(.horizontal)
+        .frame(maxWidth: .infinity)
+        .background(Color.white)
+        .cornerRadius(10)
+        .shadow(radius: 5)
     }
 }
 
