@@ -14,6 +14,9 @@
 		0D2DF0B62C50080D0073F317 /* MedScanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D2DF0B52C50080D0073F317 /* MedScanTests.swift */; };
 		0D2DF0C02C50080D0073F317 /* MedScanUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D2DF0BF2C50080D0073F317 /* MedScanUITests.swift */; };
 		0D2DF0C22C50080D0073F317 /* MedScanUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D2DF0C12C50080D0073F317 /* MedScanUITestsLaunchTests.swift */; };
+		0D56774E2C7E7FDE00939944 /* Screen1View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D56774D2C7E7FDE00939944 /* Screen1View.swift */; };
+		0D5677502C7E7FEC00939944 /* Screen2View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D56774F2C7E7FEC00939944 /* Screen2View.swift */; };
+		0D5677522C7E805C00939944 /* BuscadorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D5677512C7E805C00939944 /* BuscadorView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +47,9 @@
 		0D2DF0BB2C50080D0073F317 /* MedScanUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MedScanUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0D2DF0BF2C50080D0073F317 /* MedScanUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedScanUITests.swift; sourceTree = "<group>"; };
 		0D2DF0C12C50080D0073F317 /* MedScanUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedScanUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		0D56774D2C7E7FDE00939944 /* Screen1View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Screen1View.swift; sourceTree = "<group>"; };
+		0D56774F2C7E7FEC00939944 /* Screen2View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Screen2View.swift; sourceTree = "<group>"; };
+		0D5677512C7E805C00939944 /* BuscadorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuscadorView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +102,9 @@
 			children = (
 				0D2DF0A42C50080B0073F317 /* MedScanApp.swift */,
 				0D2DF0A62C50080B0073F317 /* ContentView.swift */,
+				0D56774D2C7E7FDE00939944 /* Screen1View.swift */,
+				0D56774F2C7E7FEC00939944 /* Screen2View.swift */,
+				0D5677512C7E805C00939944 /* BuscadorView.swift */,
 				0D2DF0A82C50080D0073F317 /* Assets.xcassets */,
 				0D2DF0AA2C50080D0073F317 /* Preview Content */,
 			);
@@ -257,7 +266,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0D56774E2C7E7FDE00939944 /* Screen1View.swift in Sources */,
+				0D5677502C7E7FEC00939944 /* Screen2View.swift in Sources */,
 				0D2DF0A72C50080B0073F317 /* ContentView.swift in Sources */,
+				0D5677522C7E805C00939944 /* BuscadorView.swift in Sources */,
 				0D2DF0A52C50080B0073F317 /* MedScanApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
