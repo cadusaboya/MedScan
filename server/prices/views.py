@@ -13,8 +13,10 @@ def ifood_view(request, name):
     
     return Response({
         'name': product_data.get("name"),
-        'lowest_price': product_data.get("price")
+        'lowest_price': product_data.get("price"),
+        'url': "https://www.ifood.com.br"
     }, status=status.HTTP_200_OK)
+    
 
 @api_view(['GET'])
 def drogasil_view(request, name):
@@ -25,7 +27,8 @@ def drogasil_view(request, name):
     
     return Response({
         'name': product_data.get("name"),
-        'lowest_price': product_data.get("price")
+        'lowest_price': product_data.get("price"),
+        'url': product_data.get("url")
     }, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
@@ -37,7 +40,8 @@ def paguemenos_view(request, name):
     
     return Response({
         'name': product_data.get("name"),
-        'lowest_price': product_data.get("price")
+        'lowest_price': product_data.get("price"),
+        'url': product_data.get("url")
     }, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
@@ -46,8 +50,9 @@ def globo_view(request, name):
 
     if product_data is None:
         return Response({"error": "No prices found for the product on Drogaria Globo"}, status=status.HTTP_404_NOT_FOUND)
-    
+
     return Response({
-        'name': product_data.get("name"),
-        'lowest_price': product_data.get("price")
+        'name': product_data.get("name", "").title(),
+        'lowest_price': product_data.get("price"),
+        'url': product_data.get("url")
     }, status=status.HTTP_200_OK)
