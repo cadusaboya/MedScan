@@ -3,17 +3,16 @@ import SafariServices
 
 struct PriceResponse: Codable {
     let name: String
-    let lowest_price: Double
-    let url: String? // Include this to handle the URL in the response
+    let price: Double
+    let url: String
 }
 
 struct BuscadorView: View {
     @State private var medicineName: String = ""
     @State private var cep: String = ""
-    @State private var drogasilPriceResponse: PriceResponse?
-    @State private var globoPriceResponse: PriceResponse?
-    @State private var pagueMenosPriceResponse: PriceResponse?
-    @State private var ifoodPriceResponse: PriceResponse?
+    @State private var drogasilPriceResponses: [PriceResponse] = []
+    @State private var globoPriceResponses: [PriceResponse] = []
+    @State private var pagueMenosPriceResponses: [PriceResponse] = []
     @State private var isLoading: Bool = false
     @State private var showTable: Bool = false
     @State private var selectedProviderURL: URL?
@@ -21,87 +20,84 @@ struct BuscadorView: View {
     @State private var pendingRequests: Int = 0
 
     var body: some View {
-            VStack {
-                Text("Buscador de Preço")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .padding(.vertical, 10.0)
+        VStack {
+            Text("Buscador de Preço")
+                .font(.title)
+                .fontWeight(.bold)
+                .padding(.vertical, 10.0)
 
-                Form {
-                    Section(header: Text("Informações")) {
-                        TextField("Nome do remédio", text: $medicineName)
-                        TextField("Cidade", text: $cep)
-                    }
+            Form {
+                Section(header: Text("Informações")) {
+                    TextField("Nome do remédio", text: $medicineName)
+                    TextField("Cidade", text: $cep)
                 }
-                .frame(height: 130.0)
+            }
+            .frame(height: 130.0)
 
-                Button(action: {
-                    resetValues()
-                    isLoading = true
-                    showTable = false
-                    pendingRequests = 4 // Number of providers
-                    fetchPrices()
-                }) {
-                    Text("Buscar")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.black)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .padding()
-
-                if showTable {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(sortedPrices(), id: \.name) { provider in
-                                CardView(name: provider.name, price: provider.price, productName: provider.productName, provider: provider.provider, url: provider.url) { url in
-                                    selectedProviderURL = url
-                                    showSafari = true
-                                }
-                            }
-                        }
-                        .padding()
-                    }
-                }
-
-                if isLoading {
-                    VStack {
-                        ProgressView()
-                        Text("Buscando preços...")
-                            .padding(.top, 10)
-                    }
-                }
-
-                Spacer()
+            Button(action: {
+                resetValues()
+                isLoading = true
+                showTable = false
+                pendingRequests = 3 // Number of providers
+                fetchPrices()
+            }) {
+                Text("Buscar")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.black)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
             }
             .padding()
-            .navigationTitle("MedScan")
-            .background(Color(UIColor.systemGroupedBackground))
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showSafari) {
-                if let url = selectedProviderURL {
-                    SafariView(url: url)
+
+            if showTable {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(sortedPrices(), id: \.name) { item in
+                            CardView(name: item.provider, price: item.price, productName: item.name, provider: item.provider, url: item.url) { url in
+                                selectedProviderURL = url
+                                showSafari = true
+                            }
+                        }
+                    }
+                    .padding()
                 }
             }
-        }
 
+            if isLoading {
+                VStack {
+                    ProgressView()
+                    Text("Buscando preços...")
+                        .padding(.top, 10)
+                }
+            }
+
+            Spacer()
+        }
+        .padding()
+        .navigationTitle("MedScan")
+        .background(Color(UIColor.systemGroupedBackground))
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showSafari) {
+            if let url = selectedProviderURL {
+                SafariView(url: url)
+            }
+        }
+    }
 
     func resetValues() {
-        drogasilPriceResponse = nil
-        globoPriceResponse = nil
-        pagueMenosPriceResponse = nil
-        ifoodPriceResponse = nil
+        drogasilPriceResponses = []
+        globoPriceResponses = []
+        pagueMenosPriceResponses = []
     }
 
     func fetchPrices() {
-        fetchProviderPrice(apiEndpoint: "drogasil", priceResponse: $drogasilPriceResponse)
-        fetchProviderPrice(apiEndpoint: "globo", priceResponse: $globoPriceResponse)
-        fetchProviderPrice(apiEndpoint: "paguemenos", priceResponse: $pagueMenosPriceResponse)
-        fetchProviderPrice(apiEndpoint: "ifood", priceResponse: $ifoodPriceResponse)
+        fetchProviderPrice(apiEndpoint: "drogasil", priceResponses: $drogasilPriceResponses)
+        fetchProviderPrice(apiEndpoint: "globo", priceResponses: $globoPriceResponses)
+        fetchProviderPrice(apiEndpoint: "paguemenos", priceResponses: $pagueMenosPriceResponses)
     }
 
-    func fetchProviderPrice(apiEndpoint: String, priceResponse: Binding<PriceResponse?>) {
+    func fetchProviderPrice(apiEndpoint: String, priceResponses: Binding<[PriceResponse]>) {
         let urlString = "http://localhost:8000/api/\(apiEndpoint)/\(medicineName.lowercased())/?cep=\(cep)"
         
         guard let url = URL(string: urlString) else {
@@ -117,19 +113,19 @@ struct BuscadorView: View {
         let task = session.dataTask(with: url) { data, response, error in
             DispatchQueue.main.async {
                 if let data = data {
-                    if let decodedResponse = try? JSONDecoder().decode(PriceResponse.self, from: data) {
-                        print("Decoded \(apiEndpoint.capitalized) Response: \(decodedResponse)") // Debug print
-                        priceResponse.wrappedValue = decodedResponse
+                    if let decodedResponses = try? JSONDecoder().decode([PriceResponse].self, from: data) {
+                        print("Decoded \(apiEndpoint.capitalized) Responses: \(decodedResponses)") // Debug print
+                        priceResponses.wrappedValue = decodedResponses
                         if !showTable {
                             showTable = true
                         }
                     } else {
-                        print("Failed to decode \(apiEndpoint.capitalized) response: \(String(data: data, encoding: .utf8) ?? "No data")") // Debug print
-                        priceResponse.wrappedValue = nil
+                        print("Failed to decode \(apiEndpoint.capitalized) responses: \(String(data: data, encoding: .utf8) ?? "No data")") // Debug print
+                        priceResponses.wrappedValue = []
                     }
                 } else {
                     print("No data received or error for \(apiEndpoint.capitalized): \(error?.localizedDescription ?? "Unknown error")") // Debug print
-                    priceResponse.wrappedValue = nil
+                    priceResponses.wrappedValue = []
                 }
                 updateLoadingState()
             }
@@ -144,24 +140,24 @@ struct BuscadorView: View {
         }
     }
 
-    func sortedPrices() -> [(name: String, price: Double, productName: String, provider: String, url: URL?)] {
-        let providers = [
-            ("Drogasil", drogasilPriceResponse, "drogasil"),
-            ("Drogaria Globo", globoPriceResponse, "globo"),
-            ("Pague Menos", pagueMenosPriceResponse, "paguemenos"),
-            ("iFood", ifoodPriceResponse, "ifood")
+    func sortedPrices() -> [(name: String, price: Double, provider: String, url: URL?)] {
+        var allPrices: [(name: String, price: Double, provider: String, url: URL?)] = []
+        
+        let providers: [(String, [PriceResponse])] = [
+            ("Drogasil", drogasilPriceResponses),
+            ("Drogaria Globo", globoPriceResponses),
+            ("Pague Menos", pagueMenosPriceResponses)
         ]
         
-        return providers
-            .compactMap { name, priceResponse, provider in
-                if let response = priceResponse {
-                    let url = URL(string: response.url ?? "")
-                    return (name: name, price: response.lowest_price, productName: response.name, provider: provider, url: url)
-                } else {
-                    return nil
+        for (providerName, responses) in providers {
+            for response in responses {
+                if let url = URL(string: response.url) {
+                    allPrices.append((name: response.name, price: response.price, provider: providerName, url: url))
                 }
             }
-            .sorted { $0.price < $1.price }
+        }
+        
+        return allPrices.sorted { $0.price < $1.price }
     }
 }
 

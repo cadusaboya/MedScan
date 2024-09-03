@@ -25,7 +25,7 @@ struct MainPageView: View {
                         .fontWeight(.semibold)
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        FeatureView(icon: "magnifyingglass", title: "Buscador de Preço", description: "Procure a partir de um nome e localização o menor preço em diferentes farmácias")
+                        FeatureView(icon: "magnifyingglass", title: "Buscador de Preço", description: "Procure um medicamento nas farmácias mais populares do Brasil")
                         FeatureView(icon: "location", title: "Em breve: Buscador de similares", description: "Receba a partir de um nome todos os genéricos e similares do medicamento")
                         FeatureView(icon: "checkmark.seal", title: "Em breve: Leitor de Receita", description: "Deixe nossa IA ler a sua receita e encontrar todos os medicamentos no melhor preço utilizando as funcionalidades acima")
                     }

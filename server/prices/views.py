@@ -1,58 +1,35 @@
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .webscrape import get_ifood_price, get_drogasil_price, get_price_globo, get_price_paguemenos
-
-@api_view(['GET'])
-def ifood_view(request, name):
-    cep = request.query_params.get('cep', '')
-    product_data = get_ifood_price(name, cep)
+from .webscrape import get_drogasil_price, get_price_globo, get_price_paguemenos
     
-    if product_data is None:
-        return Response({"error": "No prices found for the product on iFood"}, status=status.HTTP_404_NOT_FOUND)
-    
-    return Response({
-        'name': product_data.get("name"),
-        'lowest_price': product_data.get("price"),
-        'url': "https://www.ifood.com.br"
-    }, status=status.HTTP_200_OK)
-    
-
 @api_view(['GET'])
 def drogasil_view(request, name):
-    product_data = get_drogasil_price(name)
-
-    if product_data is None:
+    # Assuming get_price_paguemenos returns a list of dictionaries with name, price, and url
+    product_data_list = get_drogasil_price(name)
+    
+    if not product_data_list:
         return Response({"error": "No prices found for the product on Drogasil"}, status=status.HTTP_404_NOT_FOUND)
     
-    return Response({
-        'name': product_data.get("name"),
-        'lowest_price': product_data.get("price"),
-        'url': product_data.get("url")
-    }, status=status.HTTP_200_OK)
+    return Response(product_data_list, status=status.HTTP_200_OK)
+
 
 @api_view(['GET'])
 def paguemenos_view(request, name):
-    product_data = get_price_paguemenos(name, "Pague Menos")
+    # Assuming get_price_paguemenos returns a list of dictionaries with name, price, and url
+    product_data_list = get_price_paguemenos(name, "Pague Menos")
     
-    if product_data is None:
+    if not product_data_list:
         return Response({"error": "No prices found for the product on Pague Menos"}, status=status.HTTP_404_NOT_FOUND)
     
-    return Response({
-        'name': product_data.get("name"),
-        'lowest_price': product_data.get("price"),
-        'url': product_data.get("url")
-    }, status=status.HTTP_200_OK)
+    return Response(product_data_list, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 def globo_view(request, name):
-    product_data = get_price_globo(name, "Drogaria Globo")
-
-    if product_data is None:
+    # Assuming get_price_paguemenos returns a list of dictionaries with name, price, and url
+    product_data_list = get_price_globo(name, "Drogaria Globo")
+    
+    if not product_data_list:
         return Response({"error": "No prices found for the product on Drogaria Globo"}, status=status.HTTP_404_NOT_FOUND)
-
-    return Response({
-        'name': product_data.get("name", "").title(),
-        'lowest_price': product_data.get("price"),
-        'url': product_data.get("url")
-    }, status=status.HTTP_200_OK)
+    
+    return Response(product_data_list, status=status.HTTP_200_OK)
