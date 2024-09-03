@@ -25,7 +25,12 @@ SECRET_KEY = 'django-insecure-8)tc%6ha*kzxkek5m+ipjim)w9fl&24950^6)tz+fm9rb2!p9v
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '18.229.162.236',  # Your EC2 instance public IP address
+    'localhost',
+    '127.0.0.1',
+    # Add any other hostnames or IP addresses as needed
+]
 
 
 # Application definition
