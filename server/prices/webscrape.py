@@ -37,7 +37,8 @@ def get_drogasil_price(product_name):
 
     
     # Update the path to your chromedriver if needed
-    driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
     
     # Encode spaces in the product name as +
     encoded_product_name = urllib.parse.quote_plus(product_name)
@@ -130,7 +131,8 @@ def get_price_globo(product_name, company_name):
         options.add_argument("--disable-gpu")
         prefs = {"profile.managed_default_content_settings.images": 2}
         options.add_experimental_option("prefs", prefs)
-        driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
         local_prices = []
         local_names = []
         local_urls = []  # Local list to store URLs
@@ -220,7 +222,8 @@ def get_price_paguemenos(product_name, company_name):
         options.add_argument("--disable-gpu")
         prefs = {"profile.managed_default_content_settings.images": 2}
         options.add_experimental_option("prefs", prefs)
-        driver = webdriver.Chrome(service=Service("/Users/cadusaboya/Desktop/coding/MedScan/server/myenv/bin/chromedriver/chromedriver"), options=options)
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
         try:
             driver.get(url)
             time.sleep(0.1)
